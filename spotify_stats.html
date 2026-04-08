@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Stats</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1DB954, #191414);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #1DB954;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .button-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: #1DB954;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #1ed760;
+        }
+        
+        .stats-container {
+            display: none;
+            background: rgba(25, 20, 20, 0.9);
+            color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .stats-container.show {
+            display: block;
+        }
+        
+        .profile {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 20px;
+        }
+        
+        .profile img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+        }
+        
+        .profile h2 {
+            color: #1DB954;
+            margin-bottom: 10px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h3 {
+            color: #1DB954;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #1DB954;
+            padding-bottom: 10px;
+        }
+        
+        .item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(45, 45, 45, 0.5);
+            border-radius: 5px;
+        }
+        
+        .track-name, .artist-name {
+            font-weight: bold;
+            color: #1DB954;
+            margin-bottom: 5px;
+        }
+        
+        .track-info, .artist-info {
+            font-size: 0.9em;
+            color: #bbb;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #1DB954;
+            font-size: 1.2em;
+        }
+        
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Spotify Stats</h1>
+        
+        <div class="button-container">
+            <button onclick="loginToSpotify()">Login with Spotify</button>
+        </div>
+        
+        <div class="stats-container" id="statsContainer">
+            <div class="loading" id="loading">Loading your stats...</div>
+            
+            <div id="profileSection" style="display: none;">
+                <div class="profile">
+                    <img id="profileImage" src="" alt="Profile">
+                    <h2 id="displayName"></h2>
+                    <p id="followers"></p>
+                </div>
+                
+                <div class="section">
+                    <h3>Top Tracks (Last 6 Months)</h3>
+                    <div id="topTracks"></div>
+                </div>
+                
+                <div class="section">
+                    <h3>Top Artists (Last 6 Months)</h3>
+                    <div id="topArtists"></div>
+                </div>
+            </div>
+            
+            <div id="errorDiv"></div>
+        </div>
+    </div>
+
+    <script>
+        // Spotify API Configuration
+        // You need to register an app at https://developer.spotify.com/dashboard
+        const CLIENT_ID = "YOUR_CLIENT_ID_HERE";
+        const REDIRECT_URI = window.location.origin;
+        const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
+        const API_BASE_URL = "https://api.spotify.com/v1";
+        
+        // Scopes required
+        const SCOPES = [
+            "user-top-read",
+            "user-read-private",
+            "user-read-email"
+        ];
+        
+        // Check if we're returning from Spotify login
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.hash.substring(1));
+            const accessToken = params.get('access_token');
+            
+            if (accessToken) {
+                localStorage.setItem('spotifyToken', accessToken);
+                window.location.hash = '';
+                fetchStats(accessToken);
+            }
+        });
+        
+        function loginToSpotify() {
+            const scopes = SCOPES.join('%20');
+            const authUrl = `${AUTH_ENDPOINT}?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${scopes}`;
+            window.location.href = authUrl;
+        }
+        
+        async function fetchStats(accessToken) {
+            try {
+                document.getElementById('statsContainer').classList.add('show');
+                
+                // Fetch user profile
+                const profileRes = await fetch(`${API_BASE_URL}/me`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const profile = await profileRes.json();
+                
+                // Fetch top tracks
+                const tracksRes = await fetch(`${API_BASE_URL}/me/top/tracks?limit=10&time_range=medium_term`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const tracks = await tracksRes.json();
+                
+                // Fetch top artists
+                const artistsRes = await fetch(`${API_BASE_URL}/me/top/artists?limit=10&time_range=medium_term`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                const artists = await artistsRes.json();
+                
+                displayStats(profile, tracks, artists);
+            } catch (error) {
+                showError('Error fetching stats: ' + error.message);
+            }
+        }
+        
+        function displayStats(profile, tracks, artists) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('profileSection').style.display = 'block';
+            
+            // Profile
+            if (profile.images && profile.images.length > 0) {
+                document.getElementById('profileImage').src = profile.images[0].url;
+            }
+            document.getElementById('displayName').textContent = profile.display_name || 'Spotify User';
+            document.getElementById('followers').textContent = `${profile.followers.total.toLocaleString()} followers`;
+            
+            // Top Tracks
+            const tracksHtml = tracks.items.map((track, i) => `
+                <div class="item">
+                    <div class="track-name">${i + 1}. ${track.name}</div>
+                    <div class="track-info">
+                        <strong>Artist:</strong> ${track.artists.map(a => a.name).join(', ')}<br>
+                        <strong>Popularity:</strong> ${track.popularity}/100<br>
+                        <a href="${track.external_urls.spotify}" target="_blank" style="color: #1DB954;">Play on Spotify ▶</a>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('topTracks').innerHTML = tracksHtml;
+            
+            // Top Artists
+            const artistsHtml = artists.items.map((artist, i) => `
+                <div class="item">
+                    <div class="artist-name">${i + 1}. ${artist.name}</div>
+                    <div class="artist-info">
+                        <strong>Popularity:</strong> ${artist.popularity}/100<br>
+                        <strong>Followers:</strong> ${artist.followers.total.toLocaleString()}<br>
+                        <strong>Genres:</strong> ${artist.genres.slice(0, 3).join(', ') || 'N/A'}<br>
+                        <a href="${artist.external_urls.spotify}" target="_blank" style="color: #1DB954;">Visit on Spotify ▶</a>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('topArtists').innerHTML = artistsHtml;
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('errorDiv').innerHTML = `<div class="error">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
