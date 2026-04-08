@@ -4,11 +4,81 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify Stats</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #121212; color: #FFFFFF; }
+        h1, h2 { color: #1DB954; }
+        #login { display: none; }
+        #content { display: none; }
+    </style>
 </head>
 <body>
-    <h1>Spotify Stats</h1>
-    <p>Welcome to the Spotify Stats page!</p>
-    <!-- Add more content here -->
+    <div id="login">
+        <h1>Login to Spotify</h1>
+        <button id="login-button">Login with Spotify</button>
+    </div>
+    <div id="content">
+        <h2>Your Top Tracks</h2>
+        <ul id="tracks"></ul>
+        <h2>Your Top Artists</h2>
+        <ul id="artists"></ul>
+    </div>
+    <script>
+        const CLIENT_ID = 'a7f5d73fa8a84ce5b7f91a02f682efc9';
+        const REDIRECT_URI = 'http://localhost/callback';
+        const SCOPES = 'user-top-read';
+
+        const loginButton = document.getElementById('login-button');
+        const loginDiv = document.getElementById('login');
+        const contentDiv = document.getElementById('content');
+        const tracksList = document.getElementById('tracks');
+        const artistsList = document.getElementById('artists');
+
+        loginButton.addEventListener('click', function() {
+            window.location.href = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=${SCOPES}&response_type=token`;
+        });
+
+        window.addEventListener('load', function() {
+            const hash = window.location.hash;
+            if (hash) {
+                const token = hash.split('&')[0].split('=')[1];
+                fetchTopTracks(token);
+                fetchTopArtists(token);
+                loginDiv.style.display = 'none';
+                contentDiv.style.display = 'block';
+            }
+        });
+
+        async function fetchTopTracks(token) {
+            const response = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=10', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await response.json();
+            displayTracks(data.items);
+        }
+
+        async function fetchTopArtists(token) {
+            const response = await fetch('https://api.spotify.com/v1/me/top/artists?limit=10', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await response.json();
+            displayArtists(data.items);
+        }
+
+        function displayTracks(tracks) {
+            tracks.forEach(track => {
+                const li = document.createElement('li');
+                li.textContent = track.name + ' by ' + track.artists.map(artist => artist.name).join(', ');
+                tracksList.appendChild(li);
+            });
+        }
+
+        function displayArtists(artists) {
+            artists.forEach(artist => {
+                const li = document.createElement('li');
+                li.textContent = artist.name;
+                artistsList.appendChild(li);
+            });
+        }
+    </script>
 </body>
 </html>
